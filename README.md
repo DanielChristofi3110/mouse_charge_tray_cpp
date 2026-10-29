@@ -58,18 +58,22 @@ cmake --build build --config Release
 
 ## Configuration
 
-The application uses an INI configuration file located at `res/config.ini` or similar path.
+The application uses an INI configuration file with settings managed via the `Parameters` class (see `src/Config/parameters.hpp`).
 
 ### Configuration options:
 
 ```ini
-[battery]
-polling_interval=1000
-show_notifications=true
+[Parameters]
+device_name = Meetion_MS_BT1
+svg_path = mouse.svg
+update_ms = 30000
 ```
 
-- `polling_interval`: Update frequency in milliseconds
-- `show_notifications`: Enable/disable notifications
+- `device_name`: Name of the mouse/device to monitor (default: `Meetion_MS_BT1`)
+- `svg_path`: Path to the SVG file for display (default: `mouse.svg`)
+- `update_ms`: Update interval in milliseconds (default: `30000`, i.e., 30 seconds)
+
+These values are loaded from the INI configuration file using the SimpleIni library and applied to the application parameters.
 
 ## Project Structure
 
