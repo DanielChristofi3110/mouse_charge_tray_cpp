@@ -1,7 +1,6 @@
 #define UNICODE
 #define _UNICODE
 #define WIN32_LEAN_AND_MEAN
-#define DEBUG
 
 #include <windows.h>
 #include <windef.h>
@@ -73,11 +72,14 @@ std::wstring EstimateTime(int current)
     {
         lastBattery = current;
         lastTimestamp = now;
+        spdlog::warn("Calculating Time lastBattery:{} lastTimestamp:{}",lastBattery,lastTimestamp);
         return L"Calculating…";
     }
 
     if (current == lastBattery)
     {
+
+        spdlog::info("Calculating Time lastBattery:{} lastTimestamp:{}",lastBattery,lastTimestamp);
         if (rateMinutesPerPercent <= 0) return L"Calculating…";
         if (lastDirection == "down")
             return L"Discharge: " + FormatMinutes(current * rateMinutesPerPercent);
@@ -94,7 +96,6 @@ std::wstring EstimateTime(int current)
 
     std::string direction = (deltaPercent < 0) ? "down" : "up";
 
-    // Filter jumps
     if (std::abs(deltaPercent) > 10)
     {
         spdlog::info("Battery jump detected -> reset tracking");
@@ -105,12 +106,13 @@ std::wstring EstimateTime(int current)
 
     double minutesPerPercent = deltaMinutes / std::abs(deltaPercent);
 
-    // Smooth rate
     if (rateMinutesPerPercent < 0)
         rateMinutesPerPercent = minutesPerPercent;
     else
         rateMinutesPerPercent = (rateMinutesPerPercent * 0.7) + (minutesPerPercent * 0.3);
 
+
+    spdlog::info("rateMinutesPerPercent:{}",rateMinutesPerPercent);
     lastDirection = direction;
     lastBattery = current;
     lastTimestamp = now;
@@ -118,11 +120,14 @@ std::wstring EstimateTime(int current)
     if (direction == "down")
     {
         double remaining = current * rateMinutesPerPercent;
+
+        spdlog::info("remaining:{}",remaining);
         return L"Discharge: " + FormatMinutes(remaining);
     }
     else
     {
         double remaining = (100 - current) * rateMinutesPerPercent;
+        spdlog::info("remaining:{}",remaining);
         return L"Charge: " + FormatMinutes(remaining);
     }
 }
@@ -575,15 +580,12 @@ int WINAPI wWinMain(
         LocalFree(argv);
     }
 
-    // Evaluate parameters first so we know if logging is enabled
     Parameters::get().evaluate();
 
-    // Setup spdlog sinks (Console + Optional File)
     try
     {
         std::vector<spdlog::sink_ptr> sinks;
 
-        // 1. Add console sink if Debug argument was passed
         if (isDebug)
         {
             if (AllocConsole())
@@ -597,14 +599,11 @@ int WINAPI wWinMain(
             sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
         }
 
-        // 2. Add file sink if Parameters::get().logging is true
         if (Parameters::get().logging)
         {
-            // Creates a log file at "logs/battery_app.log" relative to where the exe runs
             sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/battery_app.log", true));
         }
 
-        // Create a multi-sink logger and set it as the default
         if (!sinks.empty())
         {
             auto combined_logger = std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
@@ -614,7 +613,6 @@ int WINAPI wWinMain(
     }
     catch (const spdlog::spdlog_ex& ex)
     {
-        // Fallback if sink creation fails
         OutputDebugStringA((std::string("Log initialization failed: ") + ex.what() + "\n").c_str());
     }
 
