@@ -13,15 +13,20 @@ endif()
 # Find packages via vcpkg
 find_package(spdlog CONFIG REQUIRED)
 find_package(lunasvg CONFIG REQUIRED)
+find_package(SimpleIni CONFIG REQUIRED)
 
-add_executable(main WIN32 src/main.cpp)
+add_executable(MouseChargeTray
+WIN32
+src/main.cpp
+src/Config/parameters.cpp
+)
 
 # Copy res/ folder to build directory
-add_custom_command(TARGET main POST_BUILD
+add_custom_command(TARGET MouseChargeTray POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/res
         ${CMAKE_BINARY_DIR}/res
 )
 
 # Link using imported targets (vcpkg convention)
-target_link_libraries(main PRIVATE spdlog::spdlog lunasvg::lunasvg)
+target_link_libraries(MouseChargeTray PRIVATE spdlog::spdlog lunasvg::lunasvg SimpleIni::SimpleIni)

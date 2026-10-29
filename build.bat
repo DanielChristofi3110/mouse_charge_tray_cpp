@@ -1,49 +1,132 @@
 @echo off
-REM Build script for MouseChargeTray using CMake + Ninja + vcpkg
+REM Interactive Build Script for MouseChargeTray
+REM This script guides you through the setup and build process
 
-set BUILD_DIR=build
-set CMAKE_GENERATOR=Ninja
+setlocal EnableDelayedExpansion
 
-REM Set vcpkg root from script location (adjust if needed)
+echo ============================================
+echo  Mouse Charge Tray - Interactive Build
+============================================
+echo.
+
+REM Check for vcpkg
 set VCPKG_ROOT=%~dp0vcpkg
 
-REM Check if vcpkg exists
+if not exist "%VCPKG_ROOT%" (
+    echo [SETUP] vcpkg not found in project directory.
+    echo.
+    echo Would you like to clone vcpkg? (Y/N)
+    set /p choice="Enter choice: "
+    
+    if /i "!choice!"=="Y" (
+        echo [SETUP] Cloning vcpkg...
+        git clone https://github.com/microsoft/vcpkg.git vcpkg
+        if errorlevel 1 (
+            echo [ERROR] Failed to clone vcpkg. Please check your internet connection.
+            pause
+            exit /b 1
+        )
+        echo [SETUP] vcpkg cloned successfully.
+        echo [SETUP] Bootstrapping vcpkg...
+        call vcpkg\bootstrap-vcpkg.bat
+        if errorlevel 1 (
+            echo [ERROR] vcpkg bootstrap failed.
+            pause
+            exit /b 1
+        )
+        echo [SETUP] vcpkg is ready!
+    ) else (
+        echo [INFO] Skipping vcpkg setup. You can set VCPKG_ROOT manually.
+        echo [INFO] Continuing with existing vcpkg or manual setup...
+    )
+) else (
+    echo [SETUP] vcpkg found at: %VCPKG_ROOT%
+)
+
+REM Check vcpkg.exe exists
 if not exist "%VCPKG_ROOT%\vcpkg.exe" (
-    echo ERROR: vcpkg not found at %VCPKG_ROOT%\vcpkg.exe
-    echo Please install vcpkg or adjust the path in build.bat
+    echo [SETUP] vcpkg.exe not found. Attempting bootstrap...
+    if exist "%VCPKG_ROOT%\bootstrap-vcpkg.bat" (
+        call %VCPKG_ROOT%\bootstrap-vcpkg.bat
+    ) else (
+        echo [ERROR] vcpkg bootstrap script not found.
+        echo [INFO] Please ensure vcpkg is properly installed.
+        pause
+        exit /b 1
+    )
+)
+
+echo.
+echo [SETUP] Checking and installing required packages...
+echo [SETUP] Required: spdlog, lunasvg, simpleini
+
+echo.
+echo Would you like to install/update dependencies? (Y/N)
+set /p install_choice="Enter choice: "
+
+if /i "!install_choice!"=="Y" (
+    echo [INSTALL] Installing dependencies via vcpkg...
+    "%VCPKG_ROOT%\vcpkg.exe" install spdlog lunasvg simpleini --recurse
+    if errorlevel 1 (
+        echo [WARNING] Some packages may have failed to install.
+        echo [INFO] Check the output above for details.
+    ) else (
+        echo [INSTALL] Dependencies installed successfully!
+    )
+) else (
+    echo [INFO] Skipping dependency installation.
+)
+
+echo.
+echo ============================================
+echo  Building Mouse Charge Tray
+============================================
+echo.
+
+REM Create build directory
+set BUILD_DIR=build
+if not exist "%BUILD_DIR%" (
+    echo [BUILD] Creating build directory...
+    mkdir "%BUILD_DIR%"
+)
+
+REM Configure with CMake
+cd /d "%BUILD_DIR%"
+
+echo [BUILD] Configuring with CMake (Ninja + vcpkg)...
+cmake -G "Ninja" -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ..
+if errorlevel 1 (
+    echo [ERROR] CMake configuration failed!
+    echo [INFO] Check that:
+    echo         - vcpkg is properly set up
+    echo         - CMake and Ninja are in your PATH
+    echo         - The vcpkg toolchain file exists
     pause
     exit /b 1
 )
 
-REM Install vcpkg dependencies if needed
-echo Checking vcpkg dependencies...
-"%VCPKG_ROOT%\vcpkg.exe" install spdlog lunasvg --recurse 2>&1
-if errorlevel 1 (
-    echo WARNING: vcpkg install had issues, but continuing...
-)
+echo [BUILD] Configuration complete.
+echo.
 
-REM Create build directory if it doesn't exist
-if not exist "%BUILD_DIR%" (
-    mkdir "%BUILD_DIR%"
-)
-
-cd /d "%BUILD_DIR%"
-
-REM Configure with CMake using vcpkg toolchain
-echo Configuring with CMake and vcpkg...
-cmake -G "%CMAKE_GENERATOR%" -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ..
-if errorlevel 1 (
-    echo CMake configuration failed!
-    exit /b 1
-)
-
-REM Build the project
-echo Building...
+REM Build
+echo [BUILD] Building project...
 cmake --build . --config Release
 if errorlevel 1 (
-    echo Build failed!
+    echo [ERROR] Build failed!
+    echo [INFO] Check the error messages above.
+    pause
     exit /b 1
 )
 
-echo Build successful!
-echo Executable: %CD%\main.exe
+echo.
+echo ============================================
+echo  Build Complete!
+============================================
+echo [SUCCESS] Executable: %CD%\MouseChargeTray.exe
+echo [SUCCESS] Resources: %CD%\res\
+echo [SUCCESS] Compile commands: %CD%\compile_commands.json
+echo.
+echo [INFO] You can now run MouseChargeTray.exe from this directory.
+echo [INFO] The application will appear in your system tray.
+echo.
+pause
