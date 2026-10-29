@@ -34,6 +34,7 @@ constexpr UINT_PTR TIMER_UPDATE = 1;
 constexpr UINT ID_UPDATE = 1001;
 constexpr UINT ID_ABOUT  = 1002;
 constexpr UINT ID_EXIT   = 1003;
+constexpr UINT ID_SCAN   = 1004;
 
 NOTIFYICONDATAW trayData{};
 HICON hCustomTrayIcon = nullptr;
@@ -45,6 +46,106 @@ static std::string lastDirection = "none";
 
 static std::future<int> g_batteryFuture;
 static bool g_isQuerying = false;
+
+std::vector<std::string> ScanAvailableDevices()
+{
+    std::vector<std::string> deviceList;
+    std::wstring cmdLine = L"powershell.exe -NoProfile -NonInteractive -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-PnpDevice -Class 'Bluetooth' | ForEach-Object { $test = $_ | Get-PnpDeviceProperty -KeyName '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2' | Where-Object Type -ne 'Empty'; if ($test) { Write-Output ('Battery percentage of ' + $_.FriendlyName + ' is:'); Get-PnpDeviceProperty -InstanceId $test.InstanceId -KeyName '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2' | ForEach-Object { $_.Data }; } }\"";
+
+    SECURITY_ATTRIBUTES sa{};
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = TRUE;
+
+    HANDLE hReadPipe, hWritePipe;
+    if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0))
+    {
+        spdlog::error("Failed to create pipe for PowerShell device scan");
+        return deviceList;
+    }
+
+    SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
+
+    STARTUPINFOW si{};
+    si.cb = sizeof(STARTUPINFOW);
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.hStdOutput = hWritePipe;
+    si.hStdError = hWritePipe;
+    si.wShowWindow = SW_HIDE;
+
+    PROCESS_INFORMATION pi{};
+
+    std::vector<wchar_t> cmdBuffer(cmdLine.begin(), cmdLine.end());
+    cmdBuffer.push_back(0);
+
+    BOOL success = CreateProcessW(
+        nullptr,
+        cmdBuffer.data(),
+        nullptr,
+        nullptr,
+        TRUE,
+        CREATE_NO_WINDOW,
+        nullptr,
+        nullptr,
+        &si,
+        &pi
+    );
+
+    CloseHandle(hWritePipe);
+
+    if (!success)
+    {
+        CloseHandle(hReadPipe);
+        spdlog::error("Failed to create hidden PowerShell process for device scan");
+        return deviceList;
+    }
+
+    std::string resultStream = "";
+    char buffer[256];
+    DWORD bytesRead = 0;
+    while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, nullptr) && bytesRead > 0)
+    {
+        buffer[bytesRead] = '\0';
+        resultStream += buffer;
+    }
+
+    CloseHandle(hReadPipe);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    std::stringstream ss(resultStream);
+    std::string line;
+
+    std::string prefix = "Battery percentage of ";
+    std::string suffix = " is:";
+
+    while (std::getline(ss, line))
+    {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        line.erase(line.find_last_not_of(" \n\r\t") + 1);
+        line.erase(0, line.find_first_not_of(" \n\r\t"));
+
+        if (line.rfind(prefix, 0) == 0)
+        {
+            size_t startPos = prefix.length();
+            size_t endPos = line.find(suffix);
+
+            if (endPos != std::string::npos)
+            {
+                std::string deviceName = line.substr(startPos, endPos - startPos);
+                deviceName.erase(deviceName.find_last_not_of(" \n\r\t") + 1);
+                deviceName.erase(0, deviceName.find_first_not_of(" \n\r\t"));
+
+                if (!deviceName.empty())
+                {
+                    deviceList.push_back(deviceName);
+                }
+            }
+        }
+    }
+
+    return deviceList;
+}
+
 
 std::wstring FormatMinutes(double minutes)
 {
@@ -429,6 +530,7 @@ void ShowTrayMenu(HWND hwnd)
 
     AppendMenuW(menu, MF_STRING, ID_UPDATE, L"Update");
     AppendMenuW(menu, MF_STRING, ID_ABOUT, L"About");
+    AppendMenuW(menu, MF_STRING, ID_SCAN, L"Scan");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, ID_EXIT, L"Exit");
 
@@ -523,11 +625,20 @@ LRESULT CALLBACK WindowProc(
             case ID_UPDATE:
                 TriggerAsyncBatteryUpdate();
                 return 0;
+            case ID_SCAN:
+            {
+                for(const std::string& s :ScanAvailableDevices() ){
+
+                    spdlog::info("Found device {}",s);
+                }
+
+                return 0;
+            }
 
         case ID_ABOUT:
             MessageBoxW(
                 hwnd,
-                L"Mouse Battery Tray\nVersion: 1.1\n"
+                L"Mouse Battery Tray\nVersion: 1.2 cpp rewrite\nAuthor: Daniil Christofi\n"
                 L"Shows Bluetooth mouse battery information.",
                 L"About",
                 MB_OK | MB_ICONINFORMATION
@@ -581,7 +692,6 @@ int WINAPI wWinMain(
     }
 
     Parameters::get().evaluate();
-
     try
     {
         std::vector<spdlog::sink_ptr> sinks;
@@ -620,6 +730,8 @@ int WINAPI wWinMain(
     {
         spdlog::warn("LOG STARTED FOR DEBUG BUILD");
     }
+
+
 
     TriggerAsyncBatteryUpdate();
     constexpr wchar_t CLASS_NAME[] = L"MouseBatteryTrayWindow";
