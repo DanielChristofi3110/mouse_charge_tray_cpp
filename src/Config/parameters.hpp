@@ -32,6 +32,7 @@ public:
   std::string DeviceName="Meetion_MS_BT1";
   std::string svgPath="mouse.svg";
   uint32_t updateMs=30'000;
+  bool logging = true;
 
   void evaluate();
 

@@ -16,6 +16,9 @@
 #include <vector>
 #include <chrono>
 #include <future>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 #undef max
 #undef min
 #include "Config/parameters.hpp"
@@ -565,26 +568,61 @@ int WINAPI wWinMain(
             if (_wcsicmp(argv[i], L"Debug") == 0)
             {
                 isDebug = true;
+
                 break;
             }
         }
         LocalFree(argv);
     }
 
+    // Evaluate parameters first so we know if logging is enabled
+    Parameters::get().evaluate();
+
+    // Setup spdlog sinks (Console + Optional File)
+    try
+    {
+        std::vector<spdlog::sink_ptr> sinks;
+
+        // 1. Add console sink if Debug argument was passed
+        if (isDebug)
+        {
+            if (AllocConsole())
+            {
+                FILE* dummy;
+                freopen_s(&dummy, "CONOUT$", "w", stdout);
+                freopen_s(&dummy, "CONOUT$", "w", stderr);
+                std::wcout.clear();
+                std::cout.clear();
+            }
+            sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+        }
+
+        // 2. Add file sink if Parameters::get().logging is true
+        if (Parameters::get().logging)
+        {
+            // Creates a log file at "logs/battery_app.log" relative to where the exe runs
+            sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("logs/battery_app.log", true));
+        }
+
+        // Create a multi-sink logger and set it as the default
+        if (!sinks.empty())
+        {
+            auto combined_logger = std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
+            spdlog::set_default_logger(combined_logger);
+            spdlog::set_level(spdlog::level::info);
+        }
+    }
+    catch (const spdlog::spdlog_ex& ex)
+    {
+        // Fallback if sink creation fails
+        OutputDebugStringA((std::string("Log initialization failed: ") + ex.what() + "\n").c_str());
+    }
+
     if (isDebug)
     {
-        if (AllocConsole())
-        {
-            FILE* dummy;
-            freopen_s(&dummy, "CONOUT$", "w", stdout);
-            freopen_s(&dummy, "CONOUT$", "w", stderr);
-            std::wcout.clear();
-            std::cout.clear();
-        }
         spdlog::warn("LOG STARTED FOR DEBUG BUILD");
     }
 
-    Parameters::get().evaluate();
     TriggerAsyncBatteryUpdate();
     constexpr wchar_t CLASS_NAME[] = L"MouseBatteryTrayWindow";
 

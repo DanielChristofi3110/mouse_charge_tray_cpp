@@ -44,6 +44,7 @@ void Parameters::evaluate() {
   anyFailed |= LoadSetting(ini, "Device", "name", DeviceName);
   anyFailed |= LoadSetting(ini, "Ui", "svgPath", svgPath);
   anyFailed |= LoadSetting(ini, "General", "updateMs", updateMs);
+  anyFailed |= LoadSetting(ini, "General", "logging", logging);
 
   // // Read the configuration
   // read();

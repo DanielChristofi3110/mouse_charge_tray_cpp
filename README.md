@@ -67,11 +67,13 @@ The application uses an INI configuration file with settings managed via the `Pa
 device_name = Meetion_MS_BT1
 svg_path = mouse.svg
 update_ms = 30000
+logging = true
 ```
 
 - `device_name`: Name of the mouse/device to monitor (default: `Meetion_MS_BT1`)
 - `svg_path`: Path to the SVG file for display (default: `mouse.svg`)
 - `update_ms`: Update interval in milliseconds (default: `30000`, i.e., 30 seconds)
+- `logging`: Enable/disable logging (default: `true`)
 
 These values are loaded from the INI configuration file using the SimpleIni library and applied to the application parameters.
 
