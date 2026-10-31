@@ -19,6 +19,8 @@ add_executable(MouseChargeTray
 WIN32
 src/main.cpp
 src/Config/parameters.cpp
+src/DeviceScan/DeviceScan.cpp
+src/BatteryTimer/BatteryTimer.cpp
 )
 
 # Copy res/ folder to build directory
