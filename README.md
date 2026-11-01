@@ -77,24 +77,6 @@ logging = true
 
 These values are loaded from the INI configuration file using the SimpleIni library and applied to the application parameters.
 
-## Project Structure
-
-```
-mouse_charge_tray_cpp/
-├── CMakeLists.txt          # Build configuration
-├── build.bat               # Windows build script
-├── vcpkg/                  # vcpkg dependency management
-├── res/                    # Resource files
-│   └── config.ini         # Configuration file
-├── src/
-│   ├── main.cpp            # Main application entry
-│   └── Config/
-│       └── parameters.cpp # Configuration handling
-└── build/                  # Build output directory
-    ├── MouseChargeTray.exe
-    └── res/                # Copied resources
-```
-
 ## Development
 
 - **Compile Commands**: `build/compile_commands.json` is generated for IDE integration
