@@ -1,4 +1,5 @@
 #include "DeviceScan.hpp"
+#include <cstddef>
 #include <sstream>
 #include <spdlog/spdlog.h>
 
@@ -158,7 +159,7 @@ static LRESULT CALLBACK DevicePickerProc(HWND hwnd, UINT message, WPARAM wParam,
         if (id == IDOK || (id == 101 && code == LBN_DBLCLK)) {
             int selIndex = static_cast<int>(SendMessageW(pContext->hwndList, LB_GETCURSEL, 0, 0));
             if (selIndex != LB_ERR && pContext) {
-                pContext->selectedDevice = pContext->devices[selIndex];
+                pContext->selectedDevice = pContext->devices[static_cast<size_t>(selIndex)];
                 pContext->confirmed = true;
             }
             DestroyWindow(hwnd);

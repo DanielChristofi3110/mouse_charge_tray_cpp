@@ -1,3 +1,5 @@
+#include <cstddef>
+#include <cstdint>
 #define UNICODE
 #define _UNICODE
 #define WIN32_LEAN_AND_MEAN
@@ -10,7 +12,6 @@
 #include <iostream>
 #include <cstdio>
 #include <spdlog/spdlog.h>
-#include <algorithm>
 #include <sstream>
 #include <vector>
 #include <chrono>
@@ -161,7 +162,7 @@ HICON CreateIconFromSVGFileWithText(const std::wstring& filePath, int width, int
         int sizeNeeded = WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), (int)filePath.length(), nullptr, 0, nullptr, nullptr);
         if (sizeNeeded > 0)
         {
-            utf8Path.resize(sizeNeeded);
+            utf8Path.resize(static_cast<size_t>(sizeNeeded));
             WideCharToMultiByte(CP_UTF8, 0, filePath.c_str(), (int)filePath.length(), &utf8Path[0], sizeNeeded, nullptr, nullptr);
         }
     }
@@ -195,12 +196,12 @@ HICON CreateIconFromSVGFileWithText(const std::wstring& filePath, int width, int
         return nullptr;
     }
 
-    memcpy(ppvBits, bitmap.data(), width * height * 4);
+    memcpy(ppvBits, bitmap.data(),static_cast<size_t>(width * height * 4));
 
     if (!overlayText.empty())
     {
-        std::vector<uint32_t> originalPixels(width * height);
-        memcpy(originalPixels.data(), ppvBits, width * height * 4);
+        std::vector<uint32_t> originalPixels(static_cast<size_t>(width * height));
+        memcpy(originalPixels.data(), ppvBits,static_cast<size_t>( width * height * 4));
 
         HDC hdcMem = CreateCompatibleDC(hdc);
         HBITMAP hOldBmp = (HBITMAP)SelectObject(hdcMem, hBitmap);
@@ -243,13 +244,13 @@ HICON CreateIconFromSVGFileWithText(const std::wstring& filePath, int width, int
         uint32_t* pixels = static_cast<uint32_t*>(ppvBits);
         for (int i = 0; i < width * height; ++i)
         {
-            if (pixels[i] != originalPixels[i])
+            if (pixels[static_cast<size_t>(i)] != originalPixels[static_cast<size_t>(i)])
             {
                 uint32_t p = pixels[i];
                 uint8_t r = (p >> 16) & 0xFF;
                 uint8_t g = (p >> 8) & 0xFF;
                 uint8_t b = p & 0xFF;
-                pixels[i] = (0xFF << 24) | (r << 16) | (g << 8) | b;
+                pixels[i] = static_cast<uint32_t>((0xFF << 24) | (r << 16) | (g << 8) | b);
             }
         }
     }
@@ -446,10 +447,8 @@ LRESULT CALLBACK WindowProc(
                     if (!chosenDevice.empty()) {
                         spdlog::info("User selected device: {}", chosenDevice);
 
-                        // Update your parameter setting (adjust according to how your Parameters class handles writes)
                         Parameters::get().DeviceName = chosenDevice;
 
-                        // Optionally trigger an immediate battery update for the new device
                         UpdateBattery();
                         TriggerAsyncBatteryUpdate();
                     }
@@ -491,7 +490,7 @@ LRESULT CALLBACK WindowProc(
 int WINAPI wWinMain(
     HINSTANCE hInstance,
     HINSTANCE,
-    PWSTR pCmdLine,
+    [[maybe_unused]] PWSTR pCmdLine,
     int)
 {
     int argc = 0;
