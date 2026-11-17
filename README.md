@@ -77,12 +77,6 @@ logging = true
 
 These values are loaded from the INI configuration file using the SimpleIni library and applied to the application parameters.
 
-## Development
-
-- **Compile Commands**: `build/compile_commands.json` is generated for IDE integration
-- **Resources**: The `res/` folder is automatically copied to `build/res/` on each build
-- **Dependencies**: Managed through vcpkg; update versions in `vcpkg.json`
-
 ## License
 
 GPL .
