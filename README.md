@@ -5,7 +5,6 @@ A Windows system tray application that monitors and displays battery/charging st
 ## Features
 
 - System tray icon showing battery status
-- Charging notification
 - Battery level display
 - Configurable polling intervals
 
